@@ -15,3 +15,4 @@ Python implementation of the SubCMedians algorithm. SubCMedians is a Subspace Cl
 + seaborn
 + scikit-learn
 + scipy
++ tqdm
