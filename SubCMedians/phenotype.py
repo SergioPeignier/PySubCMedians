@@ -4,6 +4,10 @@ import pandas as pd
 
 class Phenotype:
     """
+    Phenotype class
+    
+    Examples
+    --------
     >>> ph = Phenotype(D=10, capacity=1000)
     >>> ph.add_center(0)
     >>> ph._used_centers

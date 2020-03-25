@@ -5,6 +5,10 @@ from SubCMedians.genotype import Genotype
 
 class Model:
     """
+    Model Class
+
+    Examples
+    --------
     >>> m = Model(10,100)
     >>> m._candidate_insertion = (0,1,200)
     >>> m.try_insertion()

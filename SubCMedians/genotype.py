@@ -3,6 +3,10 @@ import pandas as pd
 
 class Genotype:
     """
+    Genotype class
+
+    Examples
+    --------
     >>> np.random.seed(0)
     >>> g = Genotype()
     >>> g.insertion((3,4,9))
@@ -50,6 +54,14 @@ class Genotype:
         self.nb_centers = 0
 
     def deletion(self, gene):
+        """
+        Delete a gene from the genome
+
+        Parameters
+        ----------
+        gene : tuple
+            Tuple containing 3 elements: the cluster id, the feature id and an id
+        """
         c,d,_ = gene
         self.genes.remove(gene)
         self.genes_counter[c][d] -= 1
@@ -63,6 +75,15 @@ class Genotype:
             self.genes_counter.pop(c)
 
     def insertion(self,gene):
+        """
+        Insert a new gene into the genome
+
+        Parameters
+        ----------
+        gene : tuple
+            Tuple containing 3 elements: the cluster id, the feature id and a
+            coordinate
+        """
         c,d,_ = gene
         self.genes.add((c,d,self._t,))
         if c not in self.center_counter:
@@ -77,9 +98,28 @@ class Genotype:
         self._t += 1
 
     def get_gene_candidate(self):
+        """
+        Return a random gene from the genome
+        """
         candidate = self.genes.pop()
         self.genes.add(candidate)
         return(candidate)
 
     def to_pandas(self,index=None,columns=None):
+        """
+        Convert the genome in a pandas data frame
+
+        Parameters
+        ----------
+        index : numpy.ndarray or list, default=None
+            list containing the index name
+        columns : numpy.ndarray or list, default=None
+            list containing the columns name
+
+        Returns
+        -------
+        pandas.DataFrame
+            Data Frame containing the genome information: index represent
+            centers, while columns denote features
+        """
         return pd.DataFrame(self.genes_counter,index,columns).T
