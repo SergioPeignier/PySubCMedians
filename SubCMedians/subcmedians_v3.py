@@ -124,7 +124,11 @@ class subcmedians_v3:
         else:
             c, ae, distances_dimensions = self._predict_point_center(point)
         # Choose insertion dim
-        d = np.random.choice(self.D,p=distances_dimensions/distances_dimensions.sum())
+        sum_distances = distances_dimensions.sum()
+        if sum_distances:
+            d = np.random.choice(self.D,p=distances_dimensions/sum_distances)
+        else:
+            d = np.random.randint(self.D)
         #d = np.random.randint(self.D)
         x = point[d]
         return(c,d,x)
