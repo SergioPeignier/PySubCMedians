@@ -40,7 +40,7 @@ def make_subspace_blobs(p_dim=0.7,**blobs_params):
                             "shuffle":True,
                             "random_state":None,}
     default_blobs_params.update(blobs_params)
-    X,y_true = make_blobs(**blobs_params)
+    X,y_true = make_blobs(**default_blobs_params)
     subspaces = np.random.binomial(size=(default_blobs_params["centers"],
                                          default_blobs_params["n_features"]),
                                    p=1 - p_dim,
