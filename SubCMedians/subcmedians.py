@@ -133,15 +133,22 @@ class subcmedians:
             self._insertion(point)
 
 
-    def fit(self, X, lazy=False):
+
+    def fit(self, X, lazy=False, collector=False):
         """
         Build the SubCMedians model associated to dataset $X$
 
         Parameters
         ----------
-        X : numpy.array
+        X : numpy.ndarray
             Data set to be clustered, rows represent instances (points) and
             columns represent features (dimensions)
+        lazy: bool, default=False
+            If true only tries to update the model iif the SAE increased when
+            the datasample was updated, otherwise the optimization iteration is
+            permormed at each sample update
+        collector: bool, default=False
+            If true all the models, and conserved modifications are kept.
 
         Returns
         -------
@@ -158,10 +165,12 @@ class subcmedians:
         self._sae_history = []
         self._nb_centers_history = []
         self._genome_size_history = []
-        #self.genome_model = []
-        #self.pheno_model = []
-        #self.changes_accepted = []
-        #self.changes = []
+        if collector:
+            self.subspaces_history = []
+            self.cluster_centers_history = []
+            self.changes_accepted_history = []
+            self.changes_history = []
+            self.gain_sae_history = []
         i = self.H
         h = 0
         self._model_candidate(self.S[h])
@@ -176,25 +185,30 @@ class subcmedians:
             # generate candidate
             if industrius or ae_old_point < ae_new_point:
                 self._model_candidate(point)
-            #self.changes.append([self.model._candidate_deletion,self.model._candidate_insertion])
+            if collector:
+                self.changes_history.append([self.model._candidate_deletion,
+                                     self.model._candidate_insertion])
             sae_ = self.sae_score(self.S)
-            if sae >= sae_:
+            gain = sae - sae_
+            if gain >= 0:
                 sae = sae_
                 self.model.apply_changes()
-                #self.changes_accepted.append(1)
+                if collector:
+                    self.changes_accepted_history.append(1)
             else:
                 self.model.reverse_changes()
-                #self.changes_accepted.append(0)
+                if collector:
+                    self.changes_accepted_history.append(0)
             self._sae_history.append(sae)
             self._nb_centers_history.append(self.model.geno.nb_centers)
             self._genome_size_history.append(self.model.geno.G)
-            #self.genome_model.append(self.model.geno.to_pandas())
-            #self.pheno_model.append(self.model.pheno.to_pandas())
+            if collector:
+                self.subspaces_history.append(self.model.geno.to_pandas())
+                self.cluster_centers_history.append(self.model.pheno.to_pandas())
+                self.gain_sae_history.append(gain)
             h = (h+1)%self.H
             i = (i+1)%X.shape[0]
-        self.cluster_centers_ = self.model.pheno.to_pandas()
-        self.subspaces_ = self.model.pheno.to_pandas()*0
-        self.subspaces_ += self.model.geno.to_pandas()>0
-        self.subspaces_ = self.subspaces_[self.subspaces_.any(axis=1)]
+        self.cluster_centers_ = self.model.get_cluster_centers()
+        self.subspaces_ = self.model.get_cluster_subspaces()
         self.sae_ = sae
         return(self)

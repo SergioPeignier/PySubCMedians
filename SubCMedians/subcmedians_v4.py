@@ -4,7 +4,7 @@ from sklearn.metrics import pairwise_distances
 from tqdm.autonotebook import tqdm
 from SubCMedians.model import Model
 
-class subcmedians_v2:
+class subcmedians_v4:
     def __init__(self, D, Gmax=300, H=200, nb_iter=10000,random_state=None):
         """SubCMedians subspace clustering.
         Parameters
@@ -130,7 +130,12 @@ class subcmedians_v2:
         return(c,d,x)
 
     def _choose_deletion(self, point):
-        candidate = self.model.geno.get_gene_candidate()
+        c, ae, distances_dimensions = self._predict_point_center(point)
+        non_empty_dims = self.model.geno.get_non_empty_dims(c)
+        non_empty_dims = list(non_empty_dims)
+        distances_dimensions = distances_dimensions[non_empty_dims]
+        d = non_empty_dims[np.argmax(distances_dimensions)]
+        candidate = self.model.geno.search_gene(c,d)
         return(candidate)
 
     def _insertion(self,point):
@@ -141,10 +146,10 @@ class subcmedians_v2:
         self.model._candidate_deletion = self._choose_deletion(point)
         self.model.try_deletion()
 
-    def _model_candidate(self, point):
+    def _model_candidate(self, point_old, point_new):
             if self.model.geno.G > self.Gmax:
-                self._deletion(point)
-            self._insertion(point)
+                self._deletion(point_old)
+            self._insertion(point_new)
 
 
     def fit(self, X, lazy=False, collector=False):
@@ -186,18 +191,19 @@ class subcmedians_v2:
             self.gain_sae_history = []
         i = self.H
         h = 0
-        self._model_candidate(self.S[h])
+        self._model_candidate(self.S[h], self.S[h])
         sae = self.sae_score(self.S)
         for t in tqdm(range(self.nb_iter)):
             # update dataset and SAE
-            ae_old_point = self.sae_score(self.S[h,:])
-            point = X[i,:]
-            self.S[h,:] = point
+            point_old = self.S[h,:]
+            ae_old_point = self.sae_score(point_old)
+            point_new = X[i,:]
+            self.S[h,:] = point_new
             ae_new_point = self.sae_score(self.S[h,:])
             sae = sae - ae_old_point + ae_new_point
             # generate candidate
             if industrius or ae_old_point < ae_new_point:
-                self._model_candidate(point)
+                self._model_candidate(point_old,point_new)
             if collector:
                 self.changes_history.append([self.model._candidate_deletion,
                                      self.model._candidate_insertion])

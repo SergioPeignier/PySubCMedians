@@ -105,6 +105,15 @@ class Genotype:
         self.genes.add(candidate)
         return(candidate)
 
+    def get_non_empty_dims(self,c):
+        if c in self.genes_counter:
+            return(self.genes_counter[c].keys())
+
+    def search_gene(self,c,d):
+        for g in self.genes:
+            if g[0] == c and g[1] == d:
+                return(g)
+
     def to_pandas(self,index=None,columns=None):
         """
         Convert the genome in a pandas data frame

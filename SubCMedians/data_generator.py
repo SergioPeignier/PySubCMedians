@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.datasets import make_blobs
 
 def make_subspace_blobs(p_dim=0.7,**blobs_params):
@@ -51,4 +52,5 @@ def make_subspace_blobs(p_dim=0.7,**blobs_params):
     X_rand_subspaces =  subspaces[y_true,:]
     X *= np.logical_not(X_rand_subspaces)
     X += uniform_coordinates*X_rand_subspaces
-    return(X,y_true,np.logical_not(subspaces))
+    ss = pd.DataFrame(np.logical_not(subspaces))
+    return(X,y_true,ss)

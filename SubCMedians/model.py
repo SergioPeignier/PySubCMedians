@@ -95,3 +95,15 @@ class Model:
             self.geno.insertion(self._candidate_insertion)
         self._candidate_deletion = None
         self._candidate_insertion = None
+
+    def get_cluster_centers(self):
+        cluster_centers_ = self.pheno.to_pandas()
+        cluster_centers_.index = range(cluster_centers_.shape[0])
+        return(cluster_centers_)
+
+    def get_cluster_subspaces(self):
+        subspaces_ = self.pheno.to_pandas() * 0
+        subspaces_ += self.geno.to_pandas()
+        subspaces_.index = range(subspaces_.shape[0])
+        subspaces_ = subspaces_>0
+        return(subspaces_)
