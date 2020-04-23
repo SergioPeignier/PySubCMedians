@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="SubCMedians",
-    version="0.0.2",
+    version="0.0.3",
     author="Sergio Peignier, Christophe Rigotti",
     author_email="sergio.peignier@insa-lyon.fr",
     description="Weight-based Subspace Clustering",

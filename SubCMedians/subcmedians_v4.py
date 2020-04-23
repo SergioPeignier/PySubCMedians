@@ -68,6 +68,7 @@ class subcmedians_v4:
             cluster memberships
 
         """
+        X = np.asarray(X)
         if len(X.shape) == 1:
             X = X.reshape(1,-1)
         distances = pairwise_distances(X,
@@ -95,6 +96,7 @@ class subcmedians_v4:
             Sum of Absolute Errors
 
         """
+        X = np.asarray(X)
         if len(X.shape) == 1:
             X = X.reshape(1,-1)
         distances = pairwise_distances(X,
@@ -174,6 +176,7 @@ class subcmedians_v4:
             Fitted subcmedians instance
 
         """
+        X = np.asarray(X)
         if self.random_state is not None:
             np.random.seed(self.random_state)
         industrius = (not lazy)
