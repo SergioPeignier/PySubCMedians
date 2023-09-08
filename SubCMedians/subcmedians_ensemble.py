@@ -2,16 +2,19 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import pairwise_distances
 from tqdm.autonotebook import tqdm
-from SubCMedians.model import Model
+from collections import Counter
+from SubCMedians.subcmedians import subcmedians
 
-class subcmedians:
-    def __init__(self, D, Gmax=300, H=200, nb_iter=10000,random_state=None):
+class subcmedians_ensemble:
+    def __init__(self, D, nb_estimators, Gmax=300, H=200, nb_iter=10000,random_state=None):
         """SubCMedians subspace clustering.
 
         Parameters
         ----------
         D : int
             Dataset full dimensionality
+        nb_estimators : int
+            Number of estimators
         Gmax : int, default=300
             Maximal model size, i.e., maximal number of coordinates that can
             be included in the model
@@ -26,6 +29,8 @@ class subcmedians:
 
         Attributes
         ----------
+        subcmedians_models : list 
+            List of subcmedians objects
         cluster_centers_ : ndarray of shape (n_clusters, n_features)
             Coordinates of cluster centers.
         subspaces_  : ndarray of shape (n_clusters, n_features)
@@ -46,17 +51,40 @@ class subcmedians:
                             "centers":12}
         >>> X,y_true,ss = make_subspace_blobs(**dataset_params)
         >>> X = (X - X.mean(axis=0))/ X.std(axis=0)
-        >>> scm = subcmedians(D, Gmax=300, H=200, nb_iter=10000)
+        >>> nb_estimators = 10
+        >>> scm = subcmedians_ensemble(D, nb_estimators, Gmax=300, H=200, nb_iter=10000)
         >>> scm.fit(X)
         >>> scm.predict(X)
         """
-        self.model = Model(D=D,capacity=Gmax)
+        self.subcmedians_models = []
+        for i in range(nb_estimators):
+            if random_state is not None:
+                local_random_state = random_state+i
+            else:
+                local_random_state = None
+            self.subcmedians_models.append(subcmedians(D, Gmax=Gmax, H=H, nb_iter=nb_iter, random_state=local_random_state))
         self.Gmax = Gmax
         self.H = H
         self.D = D
         self.nb_iter = nb_iter
         self.S = {}
         self.random_state = random_state
+        self.cluster_centers_ = None
+
+    def get_all_cluster_centers(self):
+        '''
+        Get all the models cluster centers in a single data frame
+
+        Returns
+        -------
+        pandas.DataFrame
+            cluster centers locations
+        '''
+        self.cluster_centers_ = [m.cluster_centers_.copy() for m in self.subcmedians_models]
+        for i,m in enumerate(self.cluster_centers_):
+            self.cluster_centers_[i].index = [str(i)+"-"+str(v) for v in self.cluster_centers_[i].index]
+        self.cluster_centers_ = pd.concat(self.cluster_centers_)
+        return self.cluster_centers_
 
     def predict(self, X):
         """
@@ -74,16 +102,20 @@ class subcmedians:
             cluster memberships
 
         """
+        if self.cluster_centers_ is None:
+            self.get_all_cluster_centers()
         X = np.asarray(X)
         if len(X.shape) == 1:
             X = X.reshape(1,-1)
+
         distances = pairwise_distances(X,
-                                       self.model.pheno.L(),
+                                       self.cluster_centers_,
                                        metric="l1",
                                        n_jobs=None)
         self.labels_ = np.argmin(distances,axis=1)
         self.sae_ = distances[range(distances.shape[0]),self.labels_]
-        return(self.labels_)
+        return(self.cluster_centers_.index[self.labels_])
+
 
     def sae_score(self, X):
         """
@@ -102,45 +134,19 @@ class subcmedians:
             Sum of Absolute Errors
 
         """
+        if self.cluster_centers_ is None:
+            self.get_all_cluster_centers()
         X = np.asarray(X)
         if len(X.shape) == 1:
             X = X.reshape(1,-1)
+
         distances = pairwise_distances(X,
-                                       self.model.pheno.L(),
+                                       self.cluster_centers_,
                                        metric="l1",
                                        n_jobs=None)
         sae = distances.min(axis=1).sum()
         return(sae)
 
-    def _choose_insertion(self, point):
-        if np.random.random() > self.model.geno.G/(self.model.geno.G+1):
-            c = self.model.pheno.empty_center_candidate()
-        else:
-            c,_,_ = self.model.geno.get_gene_candidate()
-        d = np.random.randint(self.D)
-        x = point[d]
-        return(c,d,x)
-
-    def _choose_deletion(self, point):
-        candidate = self.model.geno.get_gene_candidate()
-        return(candidate)
-
-    def _insertion(self,point):
-        self.model._candidate_insertion = self._choose_insertion(point)
-        self.model.try_insertion()
-
-    def _deletion(self,point):
-        self.model._candidate_deletion = self._choose_deletion(point)
-        self.model.try_deletion()
-
-    def _model_candidate(self, point):
-            if self.model.geno.G > self.Gmax:
-                self._deletion(point)
-            if self.model.geno.G <= self.Gmax+1:
-                self._insertion(point)
-
-
-    
 
     def fit(self, X, lazy=False, collector=False):
         """
@@ -160,64 +166,67 @@ class subcmedians:
 
         Returns
         -------
-        subcmedians
+        subcmedians_ensemble
             Fitted subcmedians instance
 
         """
-        X = np.asarray(X)
-        if self.random_state is not None:
-            np.random.seed(self.random_state)
-        industrius = (not lazy)
-        if X.shape[0] < self.H:
-            self.H = X.shape[0]-1
-        self.S = X[:self.H,:].copy()
-        self._sae_history = []
-        self._nb_centers_history = []
-        self._genome_size_history = []
-        if collector:
-            self.subspaces_history = []
-            self.cluster_centers_history = []
-            self.changes_accepted_history = []
-            self.changes_history = []
-            self.gain_sae_history = []
-        i = self.H
-        h = 0
-        self._model_candidate(self.S[h])
-        sae = self.sae_score(self.S)
-        for t in tqdm(range(self.nb_iter)):
-            # update dataset and SAE
-            ae_old_point = self.sae_score(self.S[h,:])
-            point = X[i,:]
-            self.S[h,:] = point
-            ae_new_point = self.sae_score(self.S[h,:])
-            sae = sae - ae_old_point + ae_new_point
-            # generate candidate
-            if industrius or ae_old_point < ae_new_point:
-                self._model_candidate(point)
-            if collector:
-                self.changes_history.append([self.model._candidate_deletion,
-                                     self.model._candidate_insertion])
-            sae_ = self.sae_score(self.S)
-            gain = sae - sae_
-            if gain >= 0:
-                sae = sae_
-                self.model.apply_changes()
-                if collector:
-                    self.changes_accepted_history.append(1)
-            else:
-                self.model.reverse_changes()
-                if collector:
-                    self.changes_accepted_history.append(0)
-            self._sae_history.append(sae)
-            self._nb_centers_history.append(self.model.geno.nb_centers)
-            self._genome_size_history.append(self.model.geno.G)
-            if collector:
-                self.subspaces_history.append(self.model.geno.to_pandas())
-                self.cluster_centers_history.append(self.model.pheno.to_pandas())
-                self.gain_sae_history.append(gain)
-            h = (h+1)%self.H
-            i = (i+1)%X.shape[0]
-        self.cluster_centers_ = self.model.get_cluster_centers()
-        self.subspaces_ = self.model.get_cluster_subspaces()
-        self.sae_ = sae
+        for m in self.subcmedians_models:
+            m.fit(X, lazy, collector)
         return(self)
+
+
+    def fusion(self, X, top_centers, Gmax=300, H=200, nb_iter=10000, random_state=None):
+        """
+        Make a fusion of the best centers from an ensemble of subcmedian models into a single subcmedian
+        model and fits the model.
+
+        Parameters
+        ----------
+        X : numpy.array
+            Data set to be clustered, rows represent instances (points) and
+            columns represent features (dimensions)
+        top_centers : int
+            Number of top centers from the ensemble of subcmedians to be kept in the fusion model
+        Gmax : int, default=300
+            Maximal model size, i.e., maximal number of coordinates that can
+            be included in the model
+        H : int, default=200
+            Size of the sliding window used for training
+        nb_iter : int, default=10000
+            Number of iterations of the SubCMedians algorithm
+        random_state : int, RandomState instance, default=None
+            Determines random number generation for centroid initialization. Use
+            an int to make the randomness deterministic.
+            See :term:`Glossary <random_state>`.
+
+        Returns
+        -------
+        float
+            Sum of Absolute Errors for the fusion model
+
+        """
+        self.fusion_individual = subcmedians(self.D, Gmax, H, nb_iter, random_state)
+        y_pred = self.predict(X)
+        most_common = Counter(y_pred).most_common(top_centers)
+        i = 0
+        for c,nb_points in most_common:
+            for d in range(self.D):
+                x = self.cluster_centers_.loc[c,d]
+                if x:
+                    self.fusion_individual.model._candidate_insertion = (i,d,x)
+                    self.fusion_individual.model.try_insertion()
+                    self.fusion_individual.model.apply_changes()
+            i += 1
+        return self.fusion_individual.fit(X)
+
+
+    def predict_many_coocurrence(self,X):
+        Y = np.stack([m.predict(X) for m in self.subcmedians_models])
+        coocurence = np.zeros((Y.shape[1],Y.shape[1]))
+        for i in range(Y.shape[1]):
+            for j in range(i+1, Y.shape[1]-1):
+                n = sum(Y[:,i] == Y[:,j])
+                coocurence[i,j] = n
+                coocurence[j,i] = n
+        return coocurence
+
