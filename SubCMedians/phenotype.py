@@ -34,7 +34,7 @@ class Phenotype:
     Index: []
     """
     def __init__(self, D, capacity):
-        self._possible_centers = np.zeros((capacity, D), dtype=np.float)
+        self._possible_centers = np.zeros((capacity, D))
         self._capacity = capacity
         self._free_centers = list(range(capacity))[::-1]
         self._used_centers = []

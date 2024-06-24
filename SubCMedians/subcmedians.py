@@ -5,7 +5,9 @@ from tqdm.autonotebook import tqdm
 from SubCMedians.model import Model
 
 class subcmedians:
-    def __init__(self, D, Gmax=300, H=200, nb_iter=10000,random_state=None):
+    def __init__(self, D, Gmax=300, H=200, nb_iter=10000,
+        non_null_dimensions_sampling=True,random_state=None,
+        disable_tqdm=True):
         """SubCMedians subspace clustering.
 
         Parameters
@@ -56,7 +58,9 @@ class subcmedians:
         self.D = D
         self.nb_iter = nb_iter
         self.S = {}
+        self.non_null_dimensions_sampling=non_null_dimensions_sampling
         self.random_state = random_state
+        self.disable_tqdm = disable_tqdm
 
     def predict(self, X):
         """
@@ -117,7 +121,12 @@ class subcmedians:
             c = self.model.pheno.empty_center_candidate()
         else:
             c,_,_ = self.model.geno.get_gene_candidate()
-        d = np.random.randint(self.D)
+        if self.non_null_dimensions_sampling:
+            mask = point != 0
+            p = mask.astype(int)/(mask.sum())
+            d = np.random.choice(self.D, p=p)
+        else:
+            d = np.random.randint(self.D)
         x = point[d]
         return(c,d,x)
 
@@ -184,7 +193,7 @@ class subcmedians:
         h = 0
         self._model_candidate(self.S[h])
         sae = self.sae_score(self.S)
-        for t in tqdm(range(self.nb_iter)):
+        for t in tqdm(range(self.nb_iter),disable=disable_tqdm):
             # update dataset and SAE
             ae_old_point = self.sae_score(self.S[h,:])
             point = X[i,:]
