@@ -2,7 +2,7 @@
 python setup.py sdist bdist_wheel
 # Upload the package to pypi repository
 #twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
-twine upload --repository pypi dist/*
+twine upload --repository SubCMedians dist/*
 # build the docker image
 #cd ./docker/
 #docker build . -t speignier/grenadine

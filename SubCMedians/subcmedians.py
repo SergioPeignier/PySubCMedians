@@ -193,7 +193,7 @@ class subcmedians:
         h = 0
         self._model_candidate(self.S[h])
         sae = self.sae_score(self.S)
-        for t in tqdm(range(self.nb_iter),disable=disable_tqdm):
+        for t in tqdm(range(self.nb_iter),disable=self.disable_tqdm):
             # update dataset and SAE
             ae_old_point = self.sae_score(self.S[h,:])
             point = X[i,:]
