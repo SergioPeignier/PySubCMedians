@@ -178,7 +178,7 @@ class subcmedians:
             np.random.seed(self.random_state)
         industrius = (not lazy)
         if X.shape[0] < self.H:
-            self.H = X.shape[0]-1
+            self.H = X.shape[0]
         self.S = X[:self.H,:].copy()
         self._sae_history = []
         self._nb_centers_history = []
@@ -189,9 +189,9 @@ class subcmedians:
             self.changes_accepted_history = []
             self.changes_history = []
             self.gain_sae_history = []
-        i = self.H
+        i = self.H%X.shape[0]
         h = 0
-        self._model_candidate(self.S[h])
+        self._model_candidate(self.S[h,:])
         sae = self.sae_score(self.S)
         for t in tqdm(range(self.nb_iter),disable=self.disable_tqdm):
             # update dataset and SAE
